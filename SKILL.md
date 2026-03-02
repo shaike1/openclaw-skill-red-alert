@@ -10,65 +10,49 @@ description: >
 
 # ORef Native - OpenClaw Only 🚨
 
-## IMPORTANT - Already Running as Systemd Service
+## ⚡ AGENT INSTRUCTIONS - READ FIRST
 
-This skill is deployed and running as a systemd service. Do NOT try to run
-oref_native.py manually. Always use systemctl commands below.
+You have **direct exec access** to this server. When the user asks anything about
+alerts, status, or this system — **use the exec tool immediately** to run the
+commands below. Do NOT say you lack access. Do NOT ask the user to run commands.
+Do NOT say "אין לי גישה". Just run it.
 
-## Quick Commands
-
-### Check if service is running
+### User asks "מה ההתרעות האחרונות" / "check alerts" / "בדוק התרעות"
+→ Run this immediately:
 ```bash
-systemctl status oref-native --no-pager
+grep "🚨\|✅ WhatsApp\|✅ Speaker\|⚠️ Speaker" /var/log/oref_native.log | tail -20
 ```
 
-### Check active alerts right now
+### User asks "מה קורה עכשיו" / "are there active alerts"
+→ Run this immediately:
 ```bash
 curl -s http://localhost:49000/current | python3 -m json.tool
 ```
 
-### View recent alert history
+### User asks "סטטוס" / "status" / "האם עובד"
+→ Run this immediately:
 ```bash
-grep "🚨\|✅ WhatsApp\|✅ Speaker\|⚠️ Speaker" /var/log/oref_native.log | tail -30
+systemctl status oref-native --no-pager && curl -s http://localhost:49000/current | python3 -m json.tool
 ```
 
-### Restart the monitor
+### User asks to restart
+→ Run this immediately:
 ```bash
 systemctl restart oref-native && systemctl status oref-native --no-pager
 ```
 
-### Test speaker (TTS via HA)
+### User asks to test the speaker
+→ Run this immediately:
 ```bash
+HASS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJiZGIwNmIyOTNjNjE0OGE3YTgzMDViNmQ5YzIwOWNkZiIsImlhdCI6MTc3MjQ2OTEzOSwiZXhwIjoyMDg3ODI5MTM5fQ.NftilQndevpqzfReHOJtRwUDjSpYjuCMB-6FniPhAj0"
 sshpass -p 'Tr1C0late' ssh -o StrictHostKeyChecking=no root@100.64.0.15 \
   "curl -sk -o /dev/null -w '%{http_code}' -X POST http://172.30.32.1:8443/api/services/tts/speak \
-   -H 'Authorization: Bearer \$HASS_TOKEN' \
+   -H 'Authorization: Bearer $HASS_TOKEN' \
    -H 'Content-Type: application/json' \
    -d '{\"entity_id\":\"tts.google_translate_iw_com\",\"media_player_entity_id\":\"media_player.home_assistant_voice_09a069_media_player\",\"message\":\"בדיקת מערכת פיקוד העורף\",\"language\":\"iw\"}'"
 ```
 
-### View live logs
-```bash
-tail -f /var/log/oref_native.log
-```
-
-### Docker - check oref-alerts container
-```bash
-docker ps | grep oref
-docker logs oref-alerts --tail 20
-```
-
-### Docker - restart oref-alerts container
-```bash
-docker restart oref-alerts
-docker ps | grep oref
-```
-
-### Docker - full oref-alerts redeploy
-```bash
-docker stop oref-alerts && docker rm oref-alerts
-docker run -d -p 49000:9001 --name oref-alerts --restart unless-stopped -e TZ="Asia/Jerusalem" dmatik/oref-alerts:latest
-docker ps | grep oref
-```
+---
 
 ## Architecture
 
@@ -96,6 +80,22 @@ SSH → HA API    → 🔊 Speaker (media_player.home_assistant_voice_09a069_med
 | Monitored areas | הרצליה, הרצליה - גליל ים ומרכז |
 | Service file | /etc/systemd/system/oref-native.service |
 | Log file | /var/log/oref_native.log |
+
+## Docker Commands
+
+```bash
+# Check container
+docker ps | grep oref
+docker logs oref-alerts --tail 20
+
+# Restart
+docker restart oref-alerts
+
+# Full redeploy
+docker stop oref-alerts && docker rm oref-alerts
+docker run -d -p 49000:9001 --name oref-alerts --restart unless-stopped \
+  -e TZ="Asia/Jerusalem" dmatik/oref-alerts:latest
+```
 
 ## Alert Routing
 
