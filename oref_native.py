@@ -15,8 +15,19 @@ import time
 import logging
 import os
 import json
+import fcntl
+import sys
 from datetime import datetime
 import zoneinfo
+
+# ── מניעת הפעלה כפולה ──
+LOCK_FILE = "/var/run/oref_native.lock"
+_lock_fh = open(LOCK_FILE, "w")
+try:
+    fcntl.flock(_lock_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except IOError:
+    print("⚠️ oref_native already running - exiting")
+    sys.exit(0)
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # הגדרות
