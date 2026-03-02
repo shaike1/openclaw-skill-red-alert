@@ -4,9 +4,52 @@ description: >
   Israeli Home Front Command (פיקוד העורף) real-time alert system.
   Polls oref-alerts Docker proxy every 5s. Sends WhatsApp notifications
   and triggers HA speaker via SSH tunnel. Runs as systemd service.
+  Triggers on: (1) checking alert status, (2) checking service status,
+  (3) viewing recent alerts, (4) restarting the monitor, (5) testing the speaker.
 ---
 
 # ORef Native - OpenClaw Only 🚨
+
+## IMPORTANT - Already Running as Systemd Service
+
+This skill is deployed and running as a systemd service. Do NOT try to run
+oref_native.py manually. Always use systemctl commands below.
+
+## Quick Commands
+
+### Check if service is running
+```bash
+systemctl status oref-native --no-pager
+```
+
+### Check active alerts right now
+```bash
+curl -s http://localhost:49000/current | python3 -m json.tool
+```
+
+### View recent alert history
+```bash
+grep "🚨\|✅ WhatsApp\|✅ Speaker\|⚠️ Speaker" /var/log/oref_native.log | tail -30
+```
+
+### Restart the monitor
+```bash
+systemctl restart oref-native && systemctl status oref-native --no-pager
+```
+
+### Test speaker (TTS via HA)
+```bash
+sshpass -p 'Tr1C0late' ssh -o StrictHostKeyChecking=no root@100.64.0.15 \
+  "curl -sk -o /dev/null -w '%{http_code}' -X POST http://172.30.32.1:8443/api/services/tts/speak \
+   -H 'Authorization: Bearer \$HASS_TOKEN' \
+   -H 'Content-Type: application/json' \
+   -d '{\"entity_id\":\"tts.google_translate_iw_com\",\"media_player_entity_id\":\"media_player.home_assistant_voice_09a069_media_player\",\"message\":\"בדיקת מערכת פיקוד העורף\",\"language\":\"iw\"}'"
+```
+
+### View live logs
+```bash
+tail -f /var/log/oref_native.log
+```
 
 ## Architecture
 
@@ -17,42 +60,23 @@ Docker: dmatik/oref-alerts (port 49000)
        ↓
 oref_native.py - systemd service (polls every 5s)
        ↓
-openclaw message → 📱 WhatsApp group
-SSH → HA API    → 🔊 Speaker (tts.google_translate_iw_com)
+openclaw message → 📱 WhatsApp group (120363417492964228@g.us)
+SSH → HA API    → 🔊 Speaker (media_player.home_assistant_voice_09a069_media_player)
 ```
 
-## Deployment
+## Infrastructure
 
-Runs as a systemd service (auto-starts on boot):
-
-```bash
-# Status
-systemctl status oref-native
-
-# Restart
-systemctl restart oref-native
-
-# Logs
-tail -f /var/log/oref_native.log
-```
-
-Service file: `/etc/systemd/system/oref-native.service`
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| OREF_API_URL | http://localhost:49000/current | oref-alerts proxy |
-| MONITORED_AREAS | הרצליה,הרצליה - גליל ים ומרכז | Comma-separated areas |
-| WHATSAPP_GROUP_JID | - | WhatsApp group JID |
-| WHATSAPP_OWNER | - | Personal WhatsApp number |
-| OPENCLAW_BIN | openclaw | Path to openclaw binary |
-| HASS_TOKEN | - | HA long-lived access token |
-| HA_SSH_HOST | 100.64.0.15 | HA host Tailscale IP |
-| HA_SSH_USER | root | HA SSH user |
-| HA_SSH_PASS | - | HA SSH password |
-| HA_LOCAL_URL | http://172.30.32.1:8443 | HA internal URL (from HA host) |
-| HA_TTS_SPEAKER | media_player.home_assistant_voice_09a069_media_player | Speaker entity |
+| Component | Value |
+|-----------|-------|
+| oref-alerts API | http://localhost:49000/current |
+| HA host (Tailscale) | 100.64.0.15 |
+| HA internal URL | http://172.30.32.1:8443 |
+| TTS engine | tts.google_translate_iw_com |
+| Speaker | media_player.home_assistant_voice_09a069_media_player |
+| WhatsApp group | 120363417492964228@g.us |
+| Monitored areas | הרצליה, הרצליה - גליל ים ומרכז |
+| Service file | /etc/systemd/system/oref-native.service |
+| Log file | /var/log/oref_native.log |
 
 ## Alert Routing
 
