@@ -131,18 +131,31 @@ def cx3_call(text: str):
 
 
 def ha_tts(text: str):
-    """הכרז קולית דרך רמקול Home Assistant"""
+    """הכרז קולית דרך רמקול Home Assistant - via SSH to avoid routing issues"""
+    HA_SSH_HOST = os.getenv("HA_SSH_HOST", "100.64.0.15")
+    HA_SSH_USER = os.getenv("HA_SSH_USER", "root")
+    HA_SSH_PASS = os.getenv("HA_SSH_PASS", "Tr1C0late")
+    HA_LOCAL_URL = os.getenv("HA_LOCAL_URL", "http://172.30.32.1:8443")
+
     try:
-        r = requests.post(
-            f"{HA_URL}/api/services/tts/google_translate_say",
-            headers={"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"},
-            json={"entity_id": HA_TTS_SPEAKER, "message": text, "language": "iw"},
-            timeout=8
-        )
-        if r.status_code in (200, 201):
+        import shlex
+        safe_text = text.replace("'", "\\'")
+        safe_token = HA_TOKEN.replace("'", "\\'")
+        cmd = [
+            "sshpass", "-p", HA_SSH_PASS,
+            "ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+            f"{HA_SSH_USER}@{HA_SSH_HOST}",
+            f"curl -sk -o /dev/null -w '%{{http_code}}' -X POST {HA_LOCAL_URL}/api/services/tts/speak "
+            f"-H 'Authorization: Bearer {safe_token}' "
+            f"-H 'Content-Type: application/json' "
+            f"-d '{{\"entity_id\":\"tts.google_translate_iw_com\",\"media_player_entity_id\":\"{HA_TTS_SPEAKER}\",\"message\":\"{safe_text}\",\"language\":\"iw\"}}'"
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        code = r.stdout.strip()
+        if code in ("200", "201"):
             log.info("✅ Speaker announced")
         else:
-            log.warning(f"⚠️ Speaker {r.status_code}: {r.text[:80]}")
+            log.warning(f"⚠️ Speaker HTTP {code}: {r.stderr[:80]}")
     except Exception as e:
         log.warning(f"⚠️ Speaker error: {e}")
 
