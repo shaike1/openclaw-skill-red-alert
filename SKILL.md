@@ -51,6 +51,25 @@ sshpass -p 'Tr1C0late' ssh -o StrictHostKeyChecking=no root@100.64.0.15 \
 tail -f /var/log/oref_native.log
 ```
 
+### Docker - check oref-alerts container
+```bash
+docker ps | grep oref
+docker logs oref-alerts --tail 20
+```
+
+### Docker - restart oref-alerts container
+```bash
+docker restart oref-alerts
+docker ps | grep oref
+```
+
+### Docker - full oref-alerts redeploy
+```bash
+docker stop oref-alerts && docker rm oref-alerts
+docker run -d -p 49000:9001 --name oref-alerts --restart unless-stopped -e TZ="Asia/Jerusalem" dmatik/oref-alerts:latest
+docker ps | grep oref
+```
+
 ## Architecture
 
 ```
