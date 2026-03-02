@@ -205,20 +205,20 @@ def check_alert():
     cat      = str(current.get("cat", ""))
     alert_id = current.get("id", "")
 
-    # סיום אירוע - שלח פעם אחת
-    if cat == "13":
-        if not all_clear_sent:
-            all_clear_sent = True
-            dispatch(data)
-        return
-
-    # פילטר אזורים
+    # פילטר אזורים (גם לסיום אירוע)
     if MONITORED_AREAS:
         areas   = current.get("data", []) or []
         matched = [a for a in areas if any(m in a for m in MONITORED_AREAS)]
         if not matched:
             log.debug(f"⏭️ Skipped (not in area): {areas}")
             return
+
+    # סיום אירוע - שלח פעם אחת
+    if cat == "13":
+        if not all_clear_sent:
+            all_clear_sent = True
+            dispatch(data)
+        return
 
     # מנע ספאם
     if alert_id == last_alert_id:
